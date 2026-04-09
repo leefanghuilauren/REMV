@@ -28,12 +28,14 @@ def add_order(school, seats, pickup, dropoff, date, time):
 st.title("🚌 MOE Bus Order Management")
 st.markdown("Streamlining school transport with negotiated vendors.")
 
-# Create the 4 main tabs
-tab1, tab2, tab3, tab4 = st.tabs([
+# Create the 5 main tabs
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "📝 1. Place Order", 
     "⚙️ 2. Dispatch (Vendor)", 
     "📍 3. Teacher View", 
-    "📊 4. Billing & Ratings"
+    "📊 4. Billing & Ratings",
+    "👑 5. System Admin"
+])
 ])
 
 # --- TAB 1: SCHOOL PLACES ORDER ---
@@ -138,3 +140,45 @@ with tab4:
             df['Contract Price'] = "$150.00" # Mock price
             st.dataframe(df, use_container_width=True)
             st.metric(label="Total to Authorize", value=f"${len(df) * 150}.00")
+
+# --- TAB 5: SYSTEM ADMIN VIEW ---
+with tab5:
+    st.header("Master System Overview")
+    st.write("Complete visibility into all cross-platform activity.")
+    
+    if not st.session_state.orders:
+        st.info("No system activity logged yet.")
+    else:
+        # Convert session state to a Pandas DataFrame for easy data manipulation
+        df_admin = pd.DataFrame(st.session_state.orders)
+        
+        # --- TOP LEVEL METRICS ---
+        total_orders = len(df_admin)
+        completed = len(df_admin[df_admin['Status'] == 'Completed'])
+        pending = len(df_admin[df_admin['Status'] == 'Pending Vendor Confirmation'])
+        escalated = len(df_admin[df_admin['Status'] == 'Open to Alternative Vendors'])
+        
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("Total Trips Created", total_orders)
+        col2.metric("Trips Completed", completed)
+        col3.metric("Awaiting Vendor", pending)
+        col4.metric("Escalated (Warning)", escalated, delta_color="inverse")
+        
+        st.divider()
+        
+        # --- MASTER DATABASE VIEW ---
+        st.subheader("Master Order Database")
+        
+        # Add a filter so the admin can search by status
+        all_statuses = df_admin['Status'].unique()
+        status_filter = st.multiselect("Filter by Status", all_statuses, default=all_statuses)
+        
+        # Display the filtered table
+        filtered_df = df_admin[df_admin['Status'].isin(status_filter)]
+        st.dataframe(filtered_df, use_container_width=True)
+        
+        # Developer tool to clear the database while testing
+        st.divider()
+        if st.button("🚨 Clear All System Data (Dev Use Only)", type="secondary"):
+            st.session_state.orders = []
+            st.rerun()
