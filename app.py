@@ -36,7 +36,6 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "📊 4. Billing & Ratings",
     "👑 5. System Admin"
 ])
-])
 
 # --- TAB 1: SCHOOL PLACES ORDER ---
 with tab1:
