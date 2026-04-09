@@ -3,7 +3,7 @@ import pandas as pd
 import datetime
 
 # --- PAGE CONFIG ---
-st.set_page_config(page_title="EduTransit Bus Manager", layout="wide")
+st.set_page_config(page_title="MOE Bus Manager", layout="wide")
 
 # --- INITIALIZE MOCK DATABASE (Session State) ---
 if "orders" not in st.session_state:
@@ -44,13 +44,13 @@ with tab1:
     with st.form("order_form"):
         col1, col2 = st.columns(2)
         with col1:
-            school_name = st.selectbox("School", ["Oakwood Elementary", "Maplewood High", "Central Middle"])
+            school_name = st.selectbox("School", ["MOE Secondary School", "MOE Primary School High", "Sembawang Secondary School"])
             seat_count = st.number_input("Number of Seats Required", min_value=10, max_value=80, value=40)
             date = st.date_input("Date of Trip", datetime.date.today())
         with col2:
             time = st.time_input("Pickup Time", datetime.time(9, 0))
-            pickup_loc = st.text_input("Pickup Location", "Oakwood Main Gate")
-            dropoff_loc = st.text_input("Destination", "Science Museum")
+            pickup_loc = st.text_input("Pickup Location", "MOE HQ")
+            dropoff_loc = st.text_input("Destination", "Singapore Science Museum")
         
         submit = st.form_submit_button("Submit & Notify Vendor", type="primary")
         
