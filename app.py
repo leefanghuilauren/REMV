@@ -25,7 +25,7 @@ def add_order(school, seats, pickup, dropoff, date, time):
     return order_id
 
 # --- MAIN APP UI ---
-st.title("🚌 EduTransit: Bus Order Management")
+st.title("🚌 MOE Bus Order Management")
 st.markdown("Streamlining school transport with negotiated vendors.")
 
 # Create the 4 main tabs
