@@ -1,0 +1,15 @@
+[theme]
+# Primary accent color (Blue from your palette)
+primaryColor = "#2F80ED"
+
+# Background color (Light gradient base)
+backgroundColor = "#F5FAFF"
+
+# Secondary background (Slightly darker blue/grey for sidebar or cards)
+secondaryBackgroundColor = "#EAF4FF"
+
+# Text color (Dark grey for readability)
+textColor = "#2C2C2C"
+
+# Font type (Clean sans-serif)
+font = "sans serif"
