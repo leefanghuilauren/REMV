@@ -35,17 +35,23 @@ if app_mode == "🚌 Transport Services":
     with tab1:
         st.header("Master Transport Contract")
         st.write("Upload the yearly awarded contract to lock in vendors and rates.")
-        uploaded_file = st.file_uploader("Upload Contract (PDF/Excel)", type=['pdf', 'xlsx'], key="bus_contract")
-        if uploaded_file or st.session_state.contracts["bus"]:
-            st.session_state.contracts["bus"] = True
+        
+        # --- SIMULATED UPLOAD LOGIC ---
+        if st.session_state.contracts["bus"]:
             st.success("✅ Master Contract Active: 'City Transit Solutions' locked in at $150/trip.")
+            if st.button("🗑️ Remove Contract (Reset)", key="reset_bus_con"):
+                st.session_state.contracts["bus"] = False
+                st.rerun()
         else:
             st.warning("No active contract for the current year. Please upload one.")
+            if st.button("📥 Simulate Contract Upload", type="primary", key="sim_bus_upload"):
+                st.session_state.contracts["bus"] = True
+                st.rerun()
 
     with tab2:
         st.header("Request Bus Service")
         if not st.session_state.contracts["bus"]:
-            st.error("Please upload a Master Contract in Tab 1 first.")
+            st.error("🔒 Please upload a Master Contract in Tab 1 first to unlock booking.")
         else:
             with st.form("bus_form"):
                 col1, col2 = st.columns(2)
@@ -109,16 +115,24 @@ elif app_mode == "⚽ CCA Instructors":
     
     with tab1:
         st.header("Master CCA Contract")
-        uploaded_cca = st.file_uploader("Upload Contract (PDF/Excel)", type=['pdf', 'xlsx'], key="cca_contract")
-        if uploaded_cca or st.session_state.contracts["cca"]:
-            st.session_state.contracts["cca"] = True
+        
+        # --- SIMULATED UPLOAD LOGIC ---
+        if st.session_state.contracts["cca"]:
             st.success("✅ Master Contract Active: 'Elite Sports Academy' locked in at $80/hr.")
+            if st.button("🗑️ Remove Contract (Reset)", key="reset_cca_con"):
+                st.session_state.contracts["cca"] = False
+                st.rerun()
         else:
-            st.warning("No active contract. Please upload.")
+            st.warning("No active contract. Please upload one.")
+            if st.button("📥 Simulate Contract Upload", type="primary", key="sim_cca_upload"):
+                st.session_state.contracts["cca"] = True
+                st.rerun()
 
     with tab2:
         st.header("Book CCA Sessions")
-        if st.session_state.contracts["cca"]:
+        if not st.session_state.contracts["cca"]:
+            st.error("🔒 Please upload a Master Contract in Tab 1 first to unlock booking.")
+        else:
             with st.form("cca_form"):
                 cca_group = st.selectbox("CCA Group", ["Football", "Basketball", "Robotics Club"])
                 sess_date = st.date_input("Session Date", datetime.date.today())
