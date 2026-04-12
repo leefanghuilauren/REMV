@@ -260,5 +260,5 @@ elif app_mode == "👑 Master Admin":
             st.session_state.goods_orders = []
             st.session_state.contracts = {"bus": False, "cca": False}
             st.rerun()
-    elif admin_password != "":
+    elif admin_password != "1234":
         st.error("Incorrect password.")
