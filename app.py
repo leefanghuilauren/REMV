@@ -3,181 +3,248 @@ import pandas as pd
 import datetime
 
 # --- PAGE CONFIG ---
-st.set_page_config(page_title="MOE Bus Manager", layout="wide")
+st.set_page_config(page_title="MOE Operations Portal", layout="wide", initial_sidebar_state="expanded")
 
-# --- INITIALIZE MOCK DATABASE (Session State) ---
-if "orders" not in st.session_state:
-    st.session_state.orders = []
+# --- INITIALIZE MOCK DATABASES (Session State) ---
+if "bus_orders" not in st.session_state:
+    st.session_state.bus_orders = []
+if "cca_bookings" not in st.session_state:
+    st.session_state.cca_bookings = []
+if "goods_orders" not in st.session_state:
+    st.session_state.goods_orders = []
+if "contracts" not in st.session_state:
+    st.session_state.contracts = {"bus": False, "cca": False}
 
-# --- HELPER FUNCTIONS ---
-def add_order(school, seats, pickup, dropoff, date, time):
-    order_id = f"ORD-{len(st.session_state.orders) + 100}"
-    st.session_state.orders.append({
-        "ID": order_id,
-        "School": school,
-        "Seats": seats,
-        "Route": f"{pickup} to {dropoff}",
-        "Datetime": f"{date} {time}",
-        "Status": "Pending Vendor Confirmation",
-        "Driver": "Unassigned",
-        "Vehicle": "Unassigned"
-    })
-    return order_id
+# --- SIDEBAR NAVIGATION ---
+st.sidebar.title("🏫 MOE Portal")
+app_mode = st.sidebar.radio(
+    "Select Module",
+    ["🚌 Transport Services", "⚽ CCA Instructors", "📦 Goods & Services", "👑 Master Admin"]
+)
+st.sidebar.divider()
+st.sidebar.info("Logged in as: School Admin")
 
-# --- MAIN APP UI ---
-st.title("🚌 MOE Bus Order Management")
-st.markdown("Streamlining school transport with negotiated vendors.")
-
-# Create the 5 main tabs
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "📝 1. Place Order", 
-    "⚙️ 2. Dispatch (Vendor)", 
-    "📍 3. Teacher View", 
-    "📊 4. Billing & Ratings",
-    "👑 5. System Admin"
-])
-
-# --- TAB 1: SCHOOL PLACES ORDER ---
-with tab1:
-    st.header("Request New Bus Service")
-    st.info("Pricing is automatically calculated based on pre-negotiated Master Contracts.")
+# ==========================================
+# MINI-APP 1: TRANSPORT SERVICES (BUS)
+# ==========================================
+if app_mode == "🚌 Transport Services":
+    st.title("🚌 Transport Services Module")
     
-    with st.form("order_form"):
+    tab1, tab2, tab3, tab4 = st.tabs(["📄 Master Contract", "📝 Book Bus", "⚙️ Vendor Dispatch", "📊 Trip & Billing"])
+    
+    with tab1:
+        st.header("Master Transport Contract")
+        st.write("Upload the yearly awarded contract to lock in vendors and rates.")
+        uploaded_file = st.file_uploader("Upload Contract (PDF/Excel)", type=['pdf', 'xlsx'], key="bus_contract")
+        if uploaded_file or st.session_state.contracts["bus"]:
+            st.session_state.contracts["bus"] = True
+            st.success("✅ Master Contract Active: 'City Transit Solutions' locked in at $150/trip.")
+        else:
+            st.warning("No active contract for the current year. Please upload one.")
+
+    with tab2:
+        st.header("Request Bus Service")
+        if not st.session_state.contracts["bus"]:
+            st.error("Please upload a Master Contract in Tab 1 first.")
+        else:
+            with st.form("bus_form"):
+                col1, col2 = st.columns(2)
+                with col1:
+                    seats = st.number_input("Seats Required", min_value=10, max_value=80, value=40)
+                    date = st.date_input("Date of Trip", datetime.date.today())
+                with col2:
+                    time = st.time_input("Pickup Time", datetime.time(9, 0))
+                    pickup = st.text_input("Pickup Location", "School Main Gate")
+                    dropoff = st.text_input("Destination", "Science Centre")
+                
+                if st.form_submit_button("Submit Order to Contracted Vendor", type="primary"):
+                    st.session_state.bus_orders.append({
+                        "ID": f"BUS-{len(st.session_state.bus_orders)+100}",
+                        "Route": f"{pickup} to {dropoff}",
+                        "Date": str(date),
+                        "Status": "Pending Vendor Assignment",
+                        "Driver": "Unassigned"
+                    })
+                    st.success("Order dispatched directly to contracted vendor.")
+
+    with tab3:
+        st.header("Vendor Dashboard (Assigned Jobs)")
+        st.write("Vendor accepts the mandated job and assigns details.")
+        for i, order in enumerate(st.session_state.bus_orders):
+            if order["Status"] == "Pending Vendor Assignment":
+                with st.expander(f"{order['ID']} - {order['Route']}"):
+                    st.write(f"**Date:** {order['Date']}")
+                    driver_name = st.text_input("Assign Driver Name", key=f"d_name_{i}")
+                    veh_num = st.text_input("Assign Vehicle Number", key=f"v_num_{i}")
+                    if st.button("Acknowledge & Assign", key=f"ack_bus_{i}"):
+                        st.session_state.bus_orders[i]["Status"] = "Assigned"
+                        st.session_state.bus_orders[i]["Driver"] = f"{driver_name} ({veh_num})"
+                        st.rerun()
+
+    with tab4:
+        st.header("Event Day & Reconciliation")
         col1, col2 = st.columns(2)
         with col1:
-            school_name = st.selectbox("School", ["MOE Secondary School", "MOE Primary School High", "Sembawang Secondary School"])
-            seat_count = st.number_input("Number of Seats Required", min_value=10, max_value=80, value=40)
-            date = st.date_input("Date of Trip", datetime.date.today())
+            st.subheader("Active Trips")
+            for i, order in enumerate(st.session_state.bus_orders):
+                if order["Status"] == "Assigned":
+                    st.info(f"**{order['ID']}**: {order['Route']} | Driver: {order['Driver']}")
+                    if st.button("Mark Completed", key=f"comp_bus_{i}"):
+                        st.session_state.bus_orders[i]["Status"] = "Completed"
+                        st.rerun()
         with col2:
-            time = st.time_input("Pickup Time", datetime.time(9, 0))
-            pickup_loc = st.text_input("Pickup Location", "MOE HQ")
-            dropoff_loc = st.text_input("Destination", "Singapore Science Museum")
-        
-        submit = st.form_submit_button("Submit & Notify Vendor", type="primary")
-        
-        if submit:
-            add_order(school_name, seat_count, pickup_loc, dropoff_loc, date, time)
-            st.success("Order submitted! An automated email has been sent to the designated vendor.")
+            st.subheader("Billing Verification")
+            df_bus = pd.DataFrame([o for o in st.session_state.bus_orders if o["Status"] == "Completed"])
+            if not df_bus.empty:
+                st.dataframe(df_bus[['ID', 'Route', 'Date']], use_container_width=True)
+                st.metric("Total Payable", f"${len(df_bus) * 150}.00")
 
-# --- TAB 2: VENDOR DISPATCH WORKFLOW ---
-with tab2:
-    st.header("Vendor Dispatch Dashboard")
-    st.write("Manage incoming requests and assign vehicles.")
+# ==========================================
+# MINI-APP 2: CCA INSTRUCTORS
+# ==========================================
+elif app_mode == "⚽ CCA Instructors":
+    st.title("⚽ CCA Instructor Management")
     
-    if not st.session_state.orders:
-        st.write("No active orders.")
-    else:
-        for i, order in enumerate(st.session_state.orders):
-            with st.expander(f"Order {order['ID']} - {order['School']} ({order['Status']})", expanded=True):
-                colA, colB = st.columns([2, 1])
-                with colA:
-                    st.write(f"**Route:** {order['Route']} | **Time:** {order['Datetime']} | **Seats:** {order['Seats']}")
-                    
-                with colB:
-                    if order['Status'] == "Pending Vendor Confirmation":
-                        if st.button("Accept & Assign", key=f"acc_{i}"):
-                            st.session_state.orders[i]['Status'] = "Accepted"
-                            st.session_state.orders[i]['Driver'] = "John D. (555-0199)"
-                            st.session_state.orders[i]['Vehicle'] = "BUS-567"
-                            st.rerun()
-                        if st.button("Decline (Open to Pool)", key=f"dec_{i}"):
-                            st.session_state.orders[i]['Status'] = "Open to Alternative Vendors"
-                            st.rerun()
-                    else:
-                        st.write(f"**Assigned Driver:** {order['Driver']}")
-                        st.write(f"**Vehicle:** {order['Vehicle']}")
-
-# --- TAB 3: TEACHER EVENT DAY VIEW ---
-with tab3:
-    st.header("Today's Trips (Teacher View)")
+    tab1, tab2, tab3, tab4 = st.tabs(["📄 Master Contract", "📅 Book Session", "📋 Instructor Portal", "💰 Invoice & Verify"])
     
-    accepted_orders = [o for o in st.session_state.orders if o['Status'] == "Accepted"]
-    
-    if not accepted_orders:
-        st.info("No confirmed trips for today yet. Go to Tab 1 to create one, and Tab 2 to accept it.")
-    else:
-        for order in accepted_orders:
-            st.subheader(f"{order['Route']}")
-            st.markdown(f"**Driver:** {order['Driver']} | **Vehicle:** {order['Vehicle']} | **ETA:** 15 mins")
-            
-            # Simple UI mockup for geolocation
-            st.progress(65, text="Bus is en route. 65% to destination.")
-            
-            if st.button(f"Mark Trip as Completed", key=f"comp_{order['ID']}"):
-                for i, o in enumerate(st.session_state.orders):
-                    if o['ID'] == order['ID']:
-                        st.session_state.orders[i]['Status'] = "Completed"
-                st.success("Trip logged as complete. Please leave a rating in the Billing tab.")
-                st.rerun()
-
-# --- TAB 4: RECONCILIATION & RATINGS ---
-with tab4:
-    st.header("Post-Trip Management")
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        st.subheader("Provide Feedback")
-        completed_orders = [o for o in st.session_state.orders if o['Status'] == "Completed"]
-        
-        if completed_orders:
-            to_rate = st.selectbox("Select Trip to Rate", [o['ID'] for o in completed_orders])
-            rating = st.slider("Service Rating", 1, 5, 5)
-            feedback = st.text_area("Comments (Optional)")
-            if st.button("Submit Feedback"):
-                st.success("Feedback saved! This acts as your goods receipt.")
+    with tab1:
+        st.header("Master CCA Contract")
+        uploaded_cca = st.file_uploader("Upload Contract (PDF/Excel)", type=['pdf', 'xlsx'], key="cca_contract")
+        if uploaded_cca or st.session_state.contracts["cca"]:
+            st.session_state.contracts["cca"] = True
+            st.success("✅ Master Contract Active: 'Elite Sports Academy' locked in at $80/hr.")
         else:
-            st.write("Complete a trip in Tab 3 to leave a rating.")
-            
-    with col2:
-        st.subheader("Monthly Reconciliation")
-        st.write("App Data vs. Vendor Invoice (Mockup)")
-        
-        # Display mock dataframe
-        df = pd.DataFrame(st.session_state.orders)
-        if not df.empty:
-            df = df[['ID', 'School', 'Status']]
-            df['Contract Price'] = "$150.00" # Mock price
-            st.dataframe(df, use_container_width=True)
-            st.metric(label="Total to Authorize", value=f"${len(df) * 150}.00")
+            st.warning("No active contract. Please upload.")
 
-# --- TAB 5: SYSTEM ADMIN VIEW ---
-with tab5:
-    st.header("Master System Overview")
-    st.write("Complete visibility into all cross-platform activity.")
+    with tab2:
+        st.header("Book CCA Sessions")
+        if st.session_state.contracts["cca"]:
+            with st.form("cca_form"):
+                cca_group = st.selectbox("CCA Group", ["Football", "Basketball", "Robotics Club"])
+                sess_date = st.date_input("Session Date", datetime.date.today())
+                hours = st.number_input("Duration (Hours)", 1, 4, 2)
+                if st.form_submit_button("Book Instructor", type="primary"):
+                    st.session_state.cca_bookings.append({
+                        "ID": f"CCA-{len(st.session_state.cca_bookings)+100}",
+                        "Group": cca_group,
+                        "Date": str(sess_date),
+                        "Hours": hours,
+                        "Status": "Pending Instructor Acceptance",
+                        "Attendance": "Not Taken"
+                    })
+                    st.success("Session booked. Instructor notified.")
+
+    with tab3:
+        st.header("Instructor Portal")
+        st.write("Instructors accept sessions and take attendance on the day.")
+        for i, sess in enumerate(st.session_state.cca_bookings):
+            with st.expander(f"{sess['ID']} - {sess['Group']} on {sess['Date']} ({sess['Status']})"):
+                if sess["Status"] == "Pending Instructor Acceptance":
+                    if st.button("Accept Session", key=f"acc_cca_{i}"):
+                        st.session_state.cca_bookings[i]["Status"] = "Accepted"
+                        st.rerun()
+                elif sess["Status"] == "Accepted":
+                    att_count = st.number_input("Students Present", 0, 50, 0, key=f"att_{i}")
+                    if st.button("Submit Attendance & Mark Complete", key=f"comp_cca_{i}"):
+                        st.session_state.cca_bookings[i]["Attendance"] = f"{att_count} students"
+                        st.session_state.cca_bookings[i]["Status"] = "Completed"
+                        st.rerun()
+
+    with tab4:
+        st.header("End of Month Invoice Generation")
+        df_cca = pd.DataFrame([s for s in st.session_state.cca_bookings if s["Status"] == "Completed"])
+        if not df_cca.empty:
+            df_cca['Cost'] = df_cca['Hours'] * 80
+            st.dataframe(df_cca[['ID', 'Group', 'Date', 'Hours', 'Attendance', 'Cost']], use_container_width=True)
+            st.metric("Total Consolidated Invoice", f"${df_cca['Cost'].sum():.2f}")
+            if st.button("Verify & Authorize Payment", type="primary"):
+                st.success("Payment Authorized and routed to Finance.")
+        else:
+            st.write("No completed sessions to bill.")
+
+# ==========================================
+# MINI-APP 3: GOODS & SERVICES
+# ==========================================
+elif app_mode == "📦 Goods & Services":
+    st.title("📦 Goods & Services Receipt")
     
-    if not st.session_state.orders:
-        st.info("No system activity logged yet.")
-    else:
-        # Convert session state to a Pandas DataFrame for easy data manipulation
-        df_admin = pd.DataFrame(st.session_state.orders)
+    tab1, tab2, tab3 = st.tabs(["🛒 Issue PO", "🚚 Supplier Dispatch", "📦 Goods Receipt & Pay"])
+    
+    with tab1:
+        st.header("Issue Purchase Order")
+        with st.form("po_form"):
+            item_desc = st.text_input("Item/Service Description", "Science Lab Beakers (Pack of 50)")
+            vendor = st.selectbox("Supplier", ["EduSupplies Ltd", "TechCorp SG", "OfficeWorld"])
+            amount = st.number_input("PO Amount ($)", min_value=1.0, value=250.0)
+            if st.form_submit_button("Issue Order", type="primary"):
+                st.session_state.goods_orders.append({
+                    "ID": f"PO-{len(st.session_state.goods_orders)+100}",
+                    "Item": item_desc,
+                    "Vendor": vendor,
+                    "Amount": amount,
+                    "Status": "Sent to Supplier",
+                    "Rating": "None"
+                })
+                st.success("PO Issued to Supplier.")
+
+    with tab2:
+        st.header("Supplier Portal")
+        for i, po in enumerate(st.session_state.goods_orders):
+            if po["Status"] == "Sent to Supplier":
+                with st.expander(f"{po['ID']} - {po['Item']}"):
+                    st.write(f"**Amount:** ${po['Amount']}")
+                    if st.button("Mark as Delivered / Service Rendered", key=f"del_po_{i}"):
+                        st.session_state.goods_orders[i]["Status"] = "Delivered (Pending Receipt)"
+                        st.rerun()
+
+    with tab3:
+        st.header("Goods Receipt & Verification")
+        for i, po in enumerate(st.session_state.goods_orders):
+            if po["Status"] == "Delivered (Pending Receipt)":
+                with st.container(border=True):
+                    st.write(f"**{po['ID']} | {po['Vendor']}** - {po['Item']}")
+                    colA, colB = st.columns(2)
+                    with colA:
+                        rating = st.slider("Rate Quality", 1, 5, 5, key=f"rate_{i}")
+                    with colB:
+                        if st.button("Acknowledge Receipt & Verify for Payment", key=f"rec_{i}"):
+                            st.session_state.goods_orders[i]["Status"] = "Completed & Verified"
+                            st.session_state.goods_orders[i]["Rating"] = f"{rating} Stars"
+                            st.rerun()
         
-        # --- TOP LEVEL METRICS ---
-        total_orders = len(df_admin)
-        completed = len(df_admin[df_admin['Status'] == 'Completed'])
-        pending = len(df_admin[df_admin['Status'] == 'Pending Vendor Confirmation'])
-        escalated = len(df_admin[df_admin['Status'] == 'Open to Alternative Vendors'])
+        st.subheader("Verified Payments Pipeline")
+        df_goods = pd.DataFrame([g for g in st.session_state.goods_orders if g["Status"] == "Completed & Verified"])
+        if not df_goods.empty:
+            st.dataframe(df_goods[['ID', 'Vendor', 'Item', 'Amount', 'Rating']], use_container_width=True)
+
+# ==========================================
+# MASTER ADMIN DASHBOARD
+# ==========================================
+elif app_mode == "👑 Master Admin":
+    st.title("👑 System Admin: Master Overview")
+    
+    admin_password = st.text_input("Enter Admin Password:", type="password")
+    if admin_password == "EduTransit2026!":
         
-        col1, col2, col3, col4 = st.columns(4)
-        col1.metric("Total Trips Created", total_orders)
-        col2.metric("Trips Completed", completed)
-        col3.metric("Awaiting Vendor", pending)
-        col4.metric("Escalated (Warning)", escalated, delta_color="inverse")
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Total Transport Trips", len(st.session_state.bus_orders))
+        col2.metric("Total CCA Sessions", len(st.session_state.cca_bookings))
+        col3.metric("Total Goods POs", len(st.session_state.goods_orders))
         
         st.divider()
+        st.subheader("Raw Data Exports")
         
-        # --- MASTER DATABASE VIEW ---
-        st.subheader("Master Order Database")
+        tabA, tabB, tabC = st.tabs(["Bus Data", "CCA Data", "Goods Data"])
+        with tabA: st.dataframe(pd.DataFrame(st.session_state.bus_orders), use_container_width=True)
+        with tabB: st.dataframe(pd.DataFrame(st.session_state.cca_bookings), use_container_width=True)
+        with tabC: st.dataframe(pd.DataFrame(st.session_state.goods_orders), use_container_width=True)
         
-        # Add a filter so the admin can search by status
-        all_statuses = df_admin['Status'].unique()
-        status_filter = st.multiselect("Filter by Status", all_statuses, default=all_statuses)
-        
-        # Display the filtered table
-        filtered_df = df_admin[df_admin['Status'].isin(status_filter)]
-        st.dataframe(filtered_df, use_container_width=True)
-        
-        # Developer tool to clear the database while testing
         st.divider()
         if st.button("🚨 Clear All System Data (Dev Use Only)", type="secondary"):
-            st.session_state.orders = []
+            st.session_state.bus_orders = []
+            st.session_state.cca_bookings = []
+            st.session_state.goods_orders = []
+            st.session_state.contracts = {"bus": False, "cca": False}
             st.rerun()
+    elif admin_password != "":
+        st.error("Incorrect password.")
