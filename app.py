@@ -252,6 +252,27 @@ elif app_mode == "👑 Master Admin":
         with tabA: st.dataframe(pd.DataFrame(st.session_state.bus_orders), use_container_width=True)
         with tabB: st.dataframe(pd.DataFrame(st.session_state.cca_bookings), use_container_width=True)
         with tabC: st.dataframe(pd.DataFrame(st.session_state.goods_orders), use_container_width=True)
+
+        import pandas as pd
+
+# 1. Check if there is data to export
+if st.session_state.bus_orders:
+    # 2. Convert the session state list into a Pandas DataFrame
+    df_export = pd.DataFrame(st.session_state.bus_orders)
+    
+    # 3. Convert the DataFrame into a CSV format
+    csv_data = df_export.to_csv(index=False).encode('utf-8')
+    
+    # 4. Create the download button
+    st.download_button(
+        label="📥 Download Bus Bookings (CSV)",
+        data=csv_data,
+        file_name="moe_bus_bookings.csv",
+        mime="text/csv",
+        type="primary"
+    )
+else:
+    st.info("No bus bookings available to download yet.")
         
         st.divider()
         if st.button("🚨 Clear All System Data (Dev Use Only)", type="secondary"):
