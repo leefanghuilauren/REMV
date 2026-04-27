@@ -100,16 +100,22 @@ if app_mode == "🚌 Transport Services":
                     with st.expander(f"🚌 Log Event: {order['ID']} - {order['Route']}", expanded=True):
                         st.info(f"Driver: {order['Driver']}")
                         
-                        st.write("**Exception Handling & Feedback**")
+                        st.write("**Exception Handling & Evidence**")
                         late_charge = st.checkbox("⚠️ Late Bus Charge Applicable (-$50 penalty)", key=f"late_{i}")
                         size_mismatch = st.checkbox("⚠️ Bus Size Mismatch", key=f"size_{i}")
+                        
+                        # --- NEW ARTIFACT UPLOADER FOR TRANSPORT ---
+                        bus_artifact = st.file_uploader("📎 Attach Parking Receipt / Photo Evidence", type=["pdf", "png", "jpg", "jpeg", "txt", "doc", "docx"], key=f"bus_file_{i}")
+                        
                         feedback = st.text_area("On-the-ground Feedback / Remarks", placeholder="e.g., Driver was 15 mins late...", key=f"fb_{i}")
                         
                         if st.button("Submit Log & Mark Completed", key=f"comp_bus_{i}", type="primary"):
                             st.session_state.bus_orders[i]["Status"] = "Completed"
                             st.session_state.bus_orders[i]["Late Charge"] = "Yes" if late_charge else "No"
                             st.session_state.bus_orders[i]["Size Mismatch"] = "Yes" if size_mismatch else "No"
+                            st.session_state.bus_orders[i]["Artifact Attached"] = "Yes" if bus_artifact else "No"
                             st.session_state.bus_orders[i]["Feedback"] = feedback
+                            
                             # Calculate final dynamic cost
                             final_cost = 150 - (50 if late_charge else 0)
                             st.session_state.bus_orders[i]["Final Cost"] = final_cost
@@ -119,7 +125,8 @@ if app_mode == "🚌 Transport Services":
             st.subheader("Billing Verification")
             df_bus = pd.DataFrame([o for o in st.session_state.bus_orders if o["Status"] == "Completed"])
             if not df_bus.empty:
-                st.dataframe(df_bus[['ID', 'Date', 'Late Charge', 'Feedback', 'Final Cost']], use_container_width=True)
+                # Updated dataframe display to include Artifact Attached
+                st.dataframe(df_bus[['ID', 'Date', 'Late Charge', 'Artifact Attached', 'Final Cost']], use_container_width=True)
                 st.metric("Total Payable (Adjusted)", f"${df_bus['Final Cost'].sum():.2f}")
 
 # ==========================================
@@ -235,7 +242,6 @@ elif app_mode == "📦 Goods & Services":
                     
                     with colA:
                         rating = st.slider("Rate Quality", 1, 5, 5, key=f"rate_{i}")
-                        # --- UPDATED FILE UPLOADER HERE ---
                         receipt_file = st.file_uploader("📎 Attach Delivery Order / Photo Evidence / Documents", type=["pdf", "png", "jpg", "jpeg", "txt", "doc", "docx"], key=f"file_{i}")
                     
                     with colB:
