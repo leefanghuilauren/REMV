@@ -77,7 +77,6 @@ if app_mode == "🚌 Transport Services":
         st.write("Vendor accepts the mandated job and assigns details.")
         for i, order in enumerate(st.session_state.bus_orders):
             if order["Status"] == "Pending Vendor Assignment":
-                # --- FIXED LINE 78 HERE ---
                 with st.expander(f"{order['ID']} - {order['Route']}"):
                     st.write(f"**Date:** {order['Date']}")
                     driver_name = st.text_input("Assign Driver Name", key=f"d_name_{i}")
@@ -90,20 +89,32 @@ if app_mode == "🚌 Transport Services":
     with tab4:
         st.header("Event Day & Reconciliation")
         col1, col2 = st.columns(2)
+        
         with col1:
             st.subheader("Active Trips")
             for i, order in enumerate(st.session_state.bus_orders):
                 if order["Status"] == "Assigned":
-                    st.info(f"**{order['ID']}**: {order['Route']} | Driver: {order['Driver']}")
-                    if st.button("Mark Completed", key=f"comp_bus_{i}"):
-                        st.session_state.bus_orders[i]["Status"] = "Completed"
-                        st.rerun()
+                    with st.expander(f"🚌 Log Event: {order['ID']} - {order['Route']}", expanded=True):
+                        st.info(f"Driver: {order['Driver']}")
+                        
+                        st.write("**Exception Handling & Feedback**")
+                        late_charge = st.checkbox("⚠️ Late Bus Charge Applicable", key=f"late_{i}")
+                        size_mismatch = st.checkbox("⚠️ Bus Size Mismatch", key=f"size_{i}")
+                        feedback = st.text_area("On-the-ground Feedback / Remarks", placeholder="e.g., Driver was 15 mins late...", key=f"fb_{i}")
+                        
+                        if st.button("Submit Log & Mark Completed", key=f"comp_bus_{i}", type="primary"):
+                            st.session_state.bus_orders[i]["Status"] = "Completed"
+                            st.session_state.bus_orders[i]["Late Charge"] = "Yes" if late_charge else "No"
+                            st.session_state.bus_orders[i]["Size Mismatch"] = "Yes" if size_mismatch else "No"
+                            st.session_state.bus_orders[i]["Feedback"] = feedback
+                            st.rerun()
+                            
         with col2:
             st.subheader("Billing Verification")
             df_bus = pd.DataFrame([o for o in st.session_state.bus_orders if o["Status"] == "Completed"])
             if not df_bus.empty:
-                st.dataframe(df_bus[['ID', 'Route', 'Date']], use_container_width=True)
-                st.metric("Total Payable", f"${len(df_bus) * 150}.00")
+                st.dataframe(df_bus[['ID', 'Date', 'Late Charge', 'Feedback']], use_container_width=True)
+                st.metric("Total Payable (Base)", f"${len(df_bus) * 150}.00")
 
 # ==========================================
 # MINI-APP 2: CCA INSTRUCTORS
@@ -215,18 +226,25 @@ elif app_mode == "📦 Goods & Services":
                 with st.container(border=True):
                     st.write(f"**{po['ID']} | {po['Vendor']}** - {po['Item']}")
                     colA, colB = st.columns(2)
+                    
                     with colA:
                         rating = st.slider("Rate Quality", 1, 5, 5, key=f"rate_{i}")
+                        receipt_file = st.file_uploader("📎 Attach Delivery Order / Photo Evidence", type=["pdf", "png", "jpg"], key=f"file_{i}")
+                    
                     with colB:
-                        if st.button("Acknowledge Receipt & Verify for Payment", key=f"rec_{i}"):
+                        remarks = st.text_area("Discrepancy Remarks", placeholder="Missing items, damaged goods, etc.", key=f"g_rem_{i}")
+                        
+                        if st.button("Acknowledge Receipt & Verify for Payment", key=f"rec_{i}", type="primary"):
                             st.session_state.goods_orders[i]["Status"] = "Completed & Verified"
                             st.session_state.goods_orders[i]["Rating"] = f"{rating} Stars"
+                            st.session_state.goods_orders[i]["Artifact Attached"] = "Yes" if receipt_file else "No"
+                            st.session_state.goods_orders[i]["Remarks"] = remarks
                             st.rerun()
         
         st.subheader("Verified Payments Pipeline")
         df_goods = pd.DataFrame([g for g in st.session_state.goods_orders if g["Status"] == "Completed & Verified"])
         if not df_goods.empty:
-            st.dataframe(df_goods[['ID', 'Vendor', 'Item', 'Amount', 'Rating']], use_container_width=True)
+            st.dataframe(df_goods[['ID', 'Vendor', 'Amount', 'Artifact Attached', 'Remarks']], use_container_width=True)
 
 # ==========================================
 # MASTER ADMIN DASHBOARD
@@ -235,6 +253,7 @@ elif app_mode == "👑 Master Admin":
     st.title("👑 System Admin: Master Overview")
     
     admin_password = st.text_input("Enter Admin Password:", type="password")
+    
     if admin_password == "1234":
         
         col1, col2, col3 = st.columns(3)
@@ -249,7 +268,6 @@ elif app_mode == "👑 Master Admin":
         
         with tabA: 
             st.dataframe(pd.DataFrame(st.session_state.bus_orders), use_container_width=True)
-            
             st.write("---") 
             if st.session_state.bus_orders:
                 df_export = pd.DataFrame(st.session_state.bus_orders)
