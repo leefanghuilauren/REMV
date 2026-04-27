@@ -3,7 +3,7 @@ import pandas as pd
 import datetime
 
 # --- PAGE CONFIG ---
-st.set_page_config(page_title="MOE Operations Portal", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Operations Portal Prototype", layout="wide", initial_sidebar_state="expanded")
 
 # --- INITIALIZE MOCK DATABASES (Session State) ---
 if "bus_orders" not in st.session_state:
@@ -16,7 +16,8 @@ if "contracts" not in st.session_state:
     st.session_state.contracts = {"bus": False, "cca": False}
 
 # --- SIDEBAR NAVIGATION ---
-st.sidebar.title("🏫 MOE Portal")
+st.sidebar.title("🏫 Operations Portal")
+st.sidebar.caption("Prototype Version 1.0")
 app_mode = st.sidebar.radio(
     "Select Module",
     ["🚌 Transport Services", "⚽ CCA Instructors", "📦 Goods & Services", "👑 Master Admin"]
@@ -29,6 +30,7 @@ st.sidebar.info("Logged in as: School Admin")
 # ==========================================
 if app_mode == "🚌 Transport Services":
     st.title("🚌 Transport Services Module")
+    st.write("End-to-end management of ad-hoc school bus logistics.")
     
     tab1, tab2, tab3, tab4 = st.tabs(["📄 Master Contract", "📝 Book Bus", "⚙️ Vendor Dispatch", "📊 Trip & Billing"])
     
@@ -68,13 +70,14 @@ if app_mode == "🚌 Transport Services":
                         "Route": f"{pickup} to {dropoff}",
                         "Date": str(date),
                         "Status": "Pending Vendor Assignment",
-                        "Driver": "Unassigned"
+                        "Driver": "Unassigned",
+                        "Base Rate": 150
                     })
                     st.success("Order dispatched directly to contracted vendor.")
 
     with tab3:
         st.header("Vendor Dashboard (Assigned Jobs)")
-        st.write("Vendor accepts the mandated job and assigns details.")
+        st.write("Vendor accepts the mandated job and assigns driver details.")
         for i, order in enumerate(st.session_state.bus_orders):
             if order["Status"] == "Pending Vendor Assignment":
                 with st.expander(f"{order['ID']} - {order['Route']}"):
@@ -91,14 +94,14 @@ if app_mode == "🚌 Transport Services":
         col1, col2 = st.columns(2)
         
         with col1:
-            st.subheader("Active Trips")
+            st.subheader("Active Trips (Ground Execution)")
             for i, order in enumerate(st.session_state.bus_orders):
                 if order["Status"] == "Assigned":
                     with st.expander(f"🚌 Log Event: {order['ID']} - {order['Route']}", expanded=True):
                         st.info(f"Driver: {order['Driver']}")
                         
                         st.write("**Exception Handling & Feedback**")
-                        late_charge = st.checkbox("⚠️ Late Bus Charge Applicable", key=f"late_{i}")
+                        late_charge = st.checkbox("⚠️ Late Bus Charge Applicable (-$50 penalty)", key=f"late_{i}")
                         size_mismatch = st.checkbox("⚠️ Bus Size Mismatch", key=f"size_{i}")
                         feedback = st.text_area("On-the-ground Feedback / Remarks", placeholder="e.g., Driver was 15 mins late...", key=f"fb_{i}")
                         
@@ -107,14 +110,17 @@ if app_mode == "🚌 Transport Services":
                             st.session_state.bus_orders[i]["Late Charge"] = "Yes" if late_charge else "No"
                             st.session_state.bus_orders[i]["Size Mismatch"] = "Yes" if size_mismatch else "No"
                             st.session_state.bus_orders[i]["Feedback"] = feedback
+                            # Calculate final dynamic cost
+                            final_cost = 150 - (50 if late_charge else 0)
+                            st.session_state.bus_orders[i]["Final Cost"] = final_cost
                             st.rerun()
                             
         with col2:
             st.subheader("Billing Verification")
             df_bus = pd.DataFrame([o for o in st.session_state.bus_orders if o["Status"] == "Completed"])
             if not df_bus.empty:
-                st.dataframe(df_bus[['ID', 'Date', 'Late Charge', 'Feedback']], use_container_width=True)
-                st.metric("Total Payable (Base)", f"${len(df_bus) * 150}.00")
+                st.dataframe(df_bus[['ID', 'Date', 'Late Charge', 'Feedback', 'Final Cost']], use_container_width=True)
+                st.metric("Total Payable (Adjusted)", f"${df_bus['Final Cost'].sum():.2f}")
 
 # ==========================================
 # MINI-APP 2: CCA INSTRUCTORS
@@ -170,15 +176,15 @@ elif app_mode == "⚽ CCA Instructors":
                     if st.button("Submit Attendance & Mark Complete", key=f"comp_cca_{i}"):
                         st.session_state.cca_bookings[i]["Attendance"] = f"{att_count} students"
                         st.session_state.cca_bookings[i]["Status"] = "Completed"
+                        st.session_state.cca_bookings[i]["Final Cost"] = sess['Hours'] * 80
                         st.rerun()
 
     with tab4:
         st.header("End of Month Invoice Generation")
         df_cca = pd.DataFrame([s for s in st.session_state.cca_bookings if s["Status"] == "Completed"])
         if not df_cca.empty:
-            df_cca['Cost'] = df_cca['Hours'] * 80
-            st.dataframe(df_cca[['ID', 'Group', 'Date', 'Hours', 'Attendance', 'Cost']], use_container_width=True)
-            st.metric("Total Consolidated Invoice", f"${df_cca['Cost'].sum():.2f}")
+            st.dataframe(df_cca[['ID', 'Group', 'Date', 'Hours', 'Attendance', 'Final Cost']], use_container_width=True)
+            st.metric("Total Consolidated Invoice", f"${df_cca['Final Cost'].sum():.2f}")
             if st.button("Verify & Authorize Payment", type="primary"):
                 st.success("Payment Authorized and routed to Finance.")
         else:
@@ -252,7 +258,7 @@ elif app_mode == "📦 Goods & Services":
 elif app_mode == "👑 Master Admin":
     st.title("👑 System Admin: Master Overview")
     
-    admin_password = st.text_input("Enter Admin Password:", type="password")
+    admin_password = st.text_input("Enter Admin Password (Try '1234'):", type="password")
     
     if admin_password == "1234":
         
@@ -272,22 +278,28 @@ elif app_mode == "👑 Master Admin":
             if st.session_state.bus_orders:
                 df_export = pd.DataFrame(st.session_state.bus_orders)
                 csv_data = df_export.to_csv(index=False).encode('utf-8')
-                
-                st.download_button(
-                    label="📥 Download Bus Bookings (CSV)",
-                    data=csv_data,
-                    file_name="moe_bus_bookings.csv",
-                    mime="text/csv",
-                    type="primary"
-                )
+                st.download_button(label="📥 Download Bus Bookings (CSV)", data=csv_data, file_name="moe_bus_bookings.csv", mime="text/csv", type="primary")
             else:
                 st.info("No bus bookings available to download yet.")
         
-        with tabB: st.dataframe(pd.DataFrame(st.session_state.cca_bookings), use_container_width=True)
-        with tabC: st.dataframe(pd.DataFrame(st.session_state.goods_orders), use_container_width=True)
+        with tabB: 
+            st.dataframe(pd.DataFrame(st.session_state.cca_bookings), use_container_width=True)
+            st.write("---")
+            if st.session_state.cca_bookings:
+                df_export_cca = pd.DataFrame(st.session_state.cca_bookings)
+                csv_data_cca = df_export_cca.to_csv(index=False).encode('utf-8')
+                st.download_button(label="📥 Download CCA Bookings (CSV)", data=csv_data_cca, file_name="moe_cca_bookings.csv", mime="text/csv", type="primary")
+
+        with tabC: 
+            st.dataframe(pd.DataFrame(st.session_state.goods_orders), use_container_width=True)
+            st.write("---")
+            if st.session_state.goods_orders:
+                df_export_goods = pd.DataFrame(st.session_state.goods_orders)
+                csv_data_goods = df_export_goods.to_csv(index=False).encode('utf-8')
+                st.download_button(label="📥 Download Goods Orders (CSV)", data=csv_data_goods, file_name="moe_goods_orders.csv", mime="text/csv", type="primary")
         
         st.divider()
-        if st.button("🚨 Clear All System Data (Dev Use Only)", type="secondary"):
+        if st.button("🚨 Clear All System Data (Reset Prototype)", type="secondary"):
             st.session_state.bus_orders = []
             st.session_state.cca_bookings = []
             st.session_state.goods_orders = []
