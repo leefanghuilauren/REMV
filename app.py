@@ -235,7 +235,8 @@ elif app_mode == "📦 Goods & Services":
                     
                     with colA:
                         rating = st.slider("Rate Quality", 1, 5, 5, key=f"rate_{i}")
-                        receipt_file = st.file_uploader("📎 Attach Delivery Order / Photo Evidence", type=["pdf", "png", "jpg"], key=f"file_{i}")
+                        # --- UPDATED FILE UPLOADER HERE ---
+                        receipt_file = st.file_uploader("📎 Attach Delivery Order / Photo Evidence / Documents", type=["pdf", "png", "jpg", "jpeg", "txt", "doc", "docx"], key=f"file_{i}")
                     
                     with colB:
                         remarks = st.text_area("Discrepancy Remarks", placeholder="Missing items, damaged goods, etc.", key=f"g_rem_{i}")
