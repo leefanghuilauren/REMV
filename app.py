@@ -5,6 +5,29 @@ import datetime
 # --- PAGE CONFIG ---
 st.set_page_config(page_title="Operations Portal Prototype", layout="wide", initial_sidebar_state="expanded")
 
+# --- LOAD EXTERNAL CSS ---
+def load_css(file_name):
+    try:
+        with open(file_name, "r") as f:
+            st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
+    except FileNotFoundError:
+        st.warning(f"CSS file '{file_name}' not found. Please ensure it's in the same directory.")
+
+# Call the function to apply your theme
+load_css("style.css")
+
+# --- INITIALIZE MOCK DATABASES (Session State) ---
+# ... (the rest of your app code continues exactly the same from here down) ...
+
+
+
+import streamlit as st
+import pandas as pd
+import datetime
+
+# --- PAGE CONFIG ---
+st.set_page_config(page_title="Operations Portal Prototype", layout="wide", initial_sidebar_state="expanded")
+
 # --- INITIALIZE MOCK DATABASES (Session State) ---
 if "bus_orders" not in st.session_state:
     st.session_state.bus_orders = []
