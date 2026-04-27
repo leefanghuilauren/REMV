@@ -124,7 +124,7 @@ if app_mode == "🚌 Transport Services":
                         st.info(f"Driver: {order['Driver']}")
                         
                         st.write("**Exception Handling & Evidence**")
-                        late_charge = st.checkbox("⚠️ Late Bus Charge Applicable (-$50 penalty)", key=f"late_{i}")
+                        late_charge = st.checkbox("⚠️ Late Bus Charge Applicable (+$50 penalty)", key=f"late_{i}")
                         size_mismatch = st.checkbox("⚠️ Bus Size Mismatch", key=f"size_{i}")
                         
                         # --- NEW ARTIFACT UPLOADER FOR TRANSPORT ---
@@ -140,7 +140,7 @@ if app_mode == "🚌 Transport Services":
                             st.session_state.bus_orders[i]["Feedback"] = feedback
                             
                             # Calculate final dynamic cost
-                            final_cost = 150 - (50 if late_charge else 0)
+                            final_cost = 150 + (50 if late_charge else 0)
                             st.session_state.bus_orders[i]["Final Cost"] = final_cost
                             st.rerun()
                             
